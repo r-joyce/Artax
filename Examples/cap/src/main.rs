@@ -1,6 +1,6 @@
 extern crate capnp;
 extern crate capnpc;
-// mod data_capnp { include!("./schema/msg_capnp.rs"); }
+mod data_capnp { include!("./schema/msg_capnp.rs"); }
 
 use std::env;
 use std::fs::File;
