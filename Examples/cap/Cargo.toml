@@ -1,0 +1,8 @@
+[package]
+name = "cap"
+version = "0.1.0"
+authors = ["Ryan Joyce <ryan.joyce@wsu.edu>"]
+
+[dependencies]
+capnp="*"
+capnpc="*"
