@@ -1,0 +1,7 @@
+[package]
+name = "hello_world_zmq"
+version = "0.1.0"
+authors = ["KJ Dorow <kevin.e.dorow@email.wsu.edu>"]
+
+[dependencies]
+zmq = "0.8.2"
