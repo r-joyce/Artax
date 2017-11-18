@@ -1,7 +1,9 @@
 extern crate protobuf;
+extern crate lzf;
 
 mod protos;
 use protos::message;
+use protobuf::Message;
 use std::io::{self, BufRead};
 
 #[test]
@@ -20,6 +22,7 @@ fn main() {
 			.trim().split(' ')
         	.map(|s| s.parse().unwrap())
         	.collect();
+    let length = nums.len();
 	
 	// Show raw input
 	println!("Plain: {:?}", nums);
@@ -28,7 +31,14 @@ fn main() {
 	let mut message = message::Message::new();
 	message.set_mz(nums);
 
-	// TODO: Is it really encoded?
+	// Compress
+	let results = message.write_to_bytes();
+	let comp = lzf::compress(&results.unwrap());
+	println!("Encoded: {:?}", comp);
+
+	// Decompress
+	let decomp = lzf::decompress(&comp.unwrap(), length);
+
 	// Show encoded message
-	println!("Encoded: {:?}", message.get_mz());
+	println!("Decoded: {:?}", decomp);
 }

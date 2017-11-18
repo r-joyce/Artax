@@ -6,3 +6,4 @@ authors = ["Ryan Joyce <ryan.joyce@wsu.edu>"]
 [dependencies]
 protoc-rust = "*"
 protobuf = "*"
+lzf = "*"
