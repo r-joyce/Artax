@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Ryan Joyce <ryan.joyce@wsu.edu>"]
 
 [dependencies]
+rustc-serialize = "0.3"
 protoc-rust = "*"
 protobuf = "*"
-lzf = "*"
+snap = "*"
+csv = "*"
