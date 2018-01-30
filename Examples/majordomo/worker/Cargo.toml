@@ -1,0 +1,17 @@
+[package]
+name = "majordomo protob"
+version = "0.1.0"
+authors = ["KJ Dorow <kevin.e.dorow@email.wsu.edu>"]
+
+[dependencies]
+zmq = "*"
+protoc-rust = "*"
+protobuf = "*"
+bincode = "0.6"
+chrono = "0.2"
+serde = "0.8"
+serde_derive = "0.8"
+
+[[bin]]
+name = "worker"
+path = "src/worker.rs"
