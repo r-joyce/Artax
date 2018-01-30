@@ -50,26 +50,26 @@ fn compress_data(data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Cont
     let received_message: i32 = Default::default();
      // let mut worker_res: Vec<u8> = Vec::new();
     let mut worker_res: Vec<u8> = sock.recv_bytes(received_message)?; 
-    // send message back to the client
+    // get message back
 
     /*End of KJ's Code*/
     Ok(())
 }
 
 fn help() {
-    println!("[!] Error: Expecting a csv file argument");
+    println!("[!] Error: Expecting a csv file argument and an integer for looping");
+    println!("Usage: cargo run <my_file.csv> <number_of_times_to_loop>");
+    println!("Example: cargo run my_data.csv 10");
     process::exit(1);
 }
 
 fn main() {
-    let mut ctx = Context::new();
-    let addr = "tcp://127.0.0.1:25933";
-	println!("ZeroMQ server connecting to {}", addr);
-	    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => {
+        3 => {
             // gather file name and initialize variables
             let file = &args[1];
+            let num = &args[2].parse::<u32>().unwrap();
             let mut data = message::Message::new();
             let mut tic: Vec<u32> = Vec::new();
             let mut time: Vec<u64> = Vec::new();
@@ -90,9 +90,15 @@ fn main() {
             }
 
             // compress the data object
-            if let Err(err) = compress_data(data, &mut compressed_data, &mut ctx, addr) {
+            if let Err(err) = compress_data(data, &mut compressed_data) {
                 println!("[!] Error compressing the data: {}", err);
                 process::exit(1);
+            }
+
+            let iter = 0..*num;
+            for i in iter {
+                // Pass some stuff to the broker here
+                println!("[+] {}", i);
             }
 
             println!("[+] Done");
