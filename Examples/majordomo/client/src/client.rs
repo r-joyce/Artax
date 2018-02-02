@@ -22,18 +22,17 @@ fn get_input(file: &String, time: &mut Vec<u64>, tic: &mut Vec<u32>) -> Result<(
 
     for row in reader.records() {
         let record = row?;
-        time.push(record[0].parse().ok().unwrap());
+       // time.push(record[0].parse().ok().unwrap());
         tic.push(record[1].parse().ok().unwrap());
     }
     Ok(())
 }
 
 fn build_object(data: &mut message::Message, time: Vec<u64>, tic: Vec<u32>) -> Result<(), Box<Error>> {
-    // data.set_time_stamps(time);
+    data.set_time_stamps(time);
     data.set_tic(tic);
     Ok(())
 }
-
 
 // Compress and send data
 fn compress_data(data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Context, addr: &str) -> Result<(), Box<Error>> {
@@ -74,6 +73,8 @@ fn main() {
             let mut tic: Vec<u32> = Vec::new();
             let mut time: Vec<u64> = Vec::new();
             let mut compressed_data: Vec<u8> = Vec::new();
+            let mut ctx = Context::new();
+		    let addr = "tcp://127.0.0.1:25933";
 
             println!("[+] Opening {}", file);
 
@@ -90,7 +91,7 @@ fn main() {
             }
 
             // compress the data object
-            if let Err(err) = compress_data(data, &mut compressed_data) {
+            if let Err(err) = compress_data(data, &mut compressed_data, &mut ctx, addr) {
                 println!("[!] Error compressing the data: {}", err);
                 process::exit(1);
             }
