@@ -5,14 +5,21 @@ addons:
     apt:
         packages:
             - libssl-dev
+
+notifications:
+  slack: slim-co:WIX4gvM82om3YyuBo9Otf5r5
+
 cache: cargo
+
 rust:
   - stable
   - beta
   - nightly
+
 matrix:
   allow_failures:
     - rust: nightly
+
 script:
 - cargo clean
 - cargo build
