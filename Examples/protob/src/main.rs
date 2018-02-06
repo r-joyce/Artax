@@ -37,6 +37,13 @@ fn compress_data(data: message::Message, comp_data: &mut Vec<u8>) -> Result<(), 
     Ok(())
 }
 
+fn decompress_data(comp_data: Vec<u8>, deco_data: &mut message::Message) -> Result<(), Box<Error>> {
+    let mut reader = snap::Decoder::new();
+    let data = reader.decompress_vec(comp_data).unwrap();
+    deco_data.merge_from_bytes(&data).unwrap();
+    Ok(())
+}
+
 fn help() {
     println!("[!] Error: Expecting a csv file argument and an integer for looping");
     println!("Usage: cargo run <my_file.csv> <number_of_times_to_loop>");
@@ -55,6 +62,7 @@ fn main() {
             let mut tic: Vec<u32> = Vec::new();
             let mut time: Vec<u64> = Vec::new();
             let mut compressed_data: Vec<u8> = Vec::new();
+            let mut decompressed_data = message::Message::new();
 
             println!("[+] Opening {}", file);
 
@@ -76,10 +84,16 @@ fn main() {
                 process::exit(1);
             }
 
+            // decompress the data
+            if let Err(err) = decompress_data(compressed_data, &mut decompressed_data) {
+                println!("[!] Error decompressing data: {}", err);
+                process::exit(1);
+            }
+
             let iter = 0..*num;
             for i in iter {
                 // Pass some stuff to the broker here
-                println!("[+] {}", i);
+                println!("[+] doing something with message: {}", i);
             }
 
             println!("[+] Done");
