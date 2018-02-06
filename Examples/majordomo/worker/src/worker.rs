@@ -44,7 +44,7 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
 
 
     for _thread in 0..THREADS {
-        let values_clone = Vec::clone(data.);
+        let values_clone = Vec::clone(&data.take_mz());
         let handle = thread::spawn(move || {
             if _thread == 0 {
                 reduction::calc_avg(_thread, values_clone.to_vec());
