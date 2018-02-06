@@ -11,6 +11,7 @@ bincode = "0.6"
 chrono = "0.2"
 serde = "0.8"
 serde_derive = "0.8"
+snap = "*"
 
 [[bin]]
 name = "worker"
