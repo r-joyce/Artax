@@ -10,55 +10,59 @@ use csv::{Reader};
 use std::error::Error;
 use std::process;
 use std::env;
-// use protobuf::Message;
+use protobuf::Message;
 
-fn get_input(file: &String, time: &mut Vec<f64>, tic: &mut Vec<u32>) -> Result<(), Box<Error>> {
+fn get_input(file: &String, time: &mut Vec<u64>, tic: &mut Vec<u32>) -> Result<(), Box<Error>> {
     let mut reader = Reader::from_file(file)
         .unwrap()
         .has_headers(false);
 
     for row in reader.records() {
         let record = row?;
-        time.push(record[0].parse().ok().unwrap());
+        time.push(record[0].parse().ok().unwrap()); // Shits broke yo
         tic.push(record[1].parse().ok().unwrap());
     }
     Ok(())
 }
 
-fn build_object(data: &mut message::Message, time: Vec<f64>, tic: Vec<u32>) -> Result<(), Box<Error>> {
-    // data.set_time_stamps(time);
+fn build_object(data: &mut message::Message, time: Vec<u64>, tic: Vec<u32>) -> Result<(), Box<Error>> {
+    data.set_time_stamps(time);
     data.set_tic(tic);
     Ok(())
 }
 
 fn compress_data(data: message::Message, comp_data: &mut Vec<u8>) -> Result<(), Box<Error>> {
     let mut writer = snap::Encoder::new();
-    // let comp_data = writer.compress_vec(data.write_to_bytes().unwrap()).unwrap();
+    *comp_data = writer.compress_vec(&data.write_to_bytes().unwrap()).unwrap();
     Ok(())
 }
 
-// fn compress_data(data: message::Message) -> Vec<u8> {
-//     let mut writer = snap::Encoder::new();
-//     let encoded_message = data.write_to_bytes().unwrap();
-//     let compressed_message = writer.compress_vec(&encoded_message).unwrap();
-//     return compressed_message;
-// }
+fn decompress_data(comp_data: Vec<u8>, deco_data: &mut message::Message) -> Result<(), Box<Error>> {
+    let mut reader = snap::Decoder::new();
+    let data = reader.decompress_vec(comp_data).unwrap();
+    deco_data.merge_from_bytes(&data).unwrap();
+    Ok(())
+}
 
 fn help() {
-    println!("[!] Error: Expecting a csv file argument");
+    println!("[!] Error: Expecting a csv file argument and an integer for looping");
+    println!("Usage: cargo run <my_file.csv> <number_of_times_to_loop>");
+    println!("Example: cargo run my_data.csv 10");
     process::exit(1);
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     match args.len() {
-        2 => {
+        3 => {
             // gather file name and initialize variables
             let file = &args[1];
+            let num = &args[2].parse::<u32>().unwrap();
             let mut data = message::Message::new();
             let mut tic: Vec<u32> = Vec::new();
-            let mut time: Vec<f64> = Vec::new();
+            let mut time: Vec<u64> = Vec::new();
             let mut compressed_data: Vec<u8> = Vec::new();
+            let mut decompressed_data = message::Message::new();
 
             println!("[+] Opening {}", file);
 
@@ -78,6 +82,18 @@ fn main() {
             if let Err(err) = compress_data(data, &mut compressed_data) {
                 println!("[!] Error compressing the data: {}", err);
                 process::exit(1);
+            }
+
+            // decompress the data
+            if let Err(err) = decompress_data(compressed_data, &mut decompressed_data) {
+                println!("[!] Error decompressing data: {}", err);
+                process::exit(1);
+            }
+
+            let iter = 0..*num;
+            for i in iter {
+                // Pass some stuff to the broker here
+                println!("[+] doing something with message: {}", i);
             }
 
             println!("[+] Done");
