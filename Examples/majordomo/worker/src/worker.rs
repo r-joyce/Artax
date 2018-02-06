@@ -7,6 +7,8 @@ mod reduction;
 
 use zmq::{Context, Error};
 use std::thread;
+use protobuf::Message;
+use protos::message;
 
 const THREADS: usize = 4;
 
@@ -21,11 +23,15 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
     println!("Message received!");
 
     // extract and perform reduction
-    let mut decompresser = snap::Decoder::new();
-    let mut values: Vec<u8> = decompresser.decompress_vec(&send_msg).unwrap();
+    let mut reader = snap::Decoder::new();
+    let compressed_data = reader.decompress_vec(&send_msg).unwrap();
+
+
+//     fn merge_from_bytes(&mut self, bytes: &[u8]) -> ProtobufResult<()>
+// fn merge_from(&mut self, is: &mut CodedInputStream) -> ProtobufResult<()>
 
     let mut data = message::Message::new();
-    values.
+    data.merge_from_bytes(&compressed_data).unwrap();
 
     let mut handles = vec![];
 
@@ -38,7 +44,7 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
 
 
     for _thread in 0..THREADS {
-        let values_clone = Vec::clone(&values);
+        let values_clone = Vec::clone(data.);
         let handle = thread::spawn(move || {
             if _thread == 0 {
                 reduction::calc_avg(_thread, values_clone.to_vec());

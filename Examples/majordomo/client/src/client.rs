@@ -22,7 +22,7 @@ fn get_input(file: &String, time: &mut Vec<u64>, tic: &mut Vec<u32>) -> Result<(
 
     for row in reader.records() {
         let record = row?;
-       // time.push(record[0].parse().ok().unwrap());
+        time.push(record[0].parse().ok().unwrap());
         tic.push(record[1].parse().ok().unwrap());
     }
     Ok(())
