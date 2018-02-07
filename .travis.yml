@@ -36,11 +36,10 @@ matrix:
   allow_failures:
     - rust: stable
     - rust: beta
-    - rust: nightly
 
 script:
 - cargo clean
-- cargo build
+- cargo build --no-default-features
 - cargo test
 
 after_success: |
