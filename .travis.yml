@@ -1,10 +1,25 @@
 language: rust
-sudo: required
+sudo: false
 dist: trusty
 addons:
     apt:
         packages:
             - libssl-dev
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - make
+            - automake
+            - gcc
+            - build-essential
+            - g++
+            - cpp
+            - libc6-dev
+            - man-db
+            - autoconf
+            - pkg-config
+            - libtool
+            - git
 
 notifications:
   slack: slim-co:WIX4gvM82om3YyuBo9Otf5r5
