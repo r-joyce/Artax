@@ -20,7 +20,7 @@ addons:
             - pkg-config
             - libtool
             - git
-            - libzmq
+            - libzmq3-dev
 
 notifications:
   slack: slim-co:WIX4gvM82om3YyuBo9Otf5r5
