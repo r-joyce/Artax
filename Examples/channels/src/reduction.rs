@@ -50,15 +50,35 @@ mod tests {
         assert_eq!(12, calc_avg(vec![8, 13, 7, 9, 23]));
     }
     #[test]
+    #[should_panic]
+    fn avg_fail() {
+        assert_eq!(9, calc_avg(vec![8, 13, 7, 9, 23]));
+    }
+    #[test]
     fn sum() {
         assert_eq!(60, calc_sum(vec![8, 13, 7, 9, 23]));
+    }
+    #[test]
+    #[should_panic]
+    fn avg_sum() {
+        assert_eq!(40, calc_avg(vec![8, 13, 7, 9, 23]));
     }
     #[test]
     fn min() {
         assert_eq!(7, calc_min(vec![13, 84, 7, 34, 57, 9, 90]));
     }
     #[test]
+    #[should_panic]
+    fn avg_min() {
+        assert_eq!(9, calc_avg(vec![8, 13, 7, 9, 23]));
+    }
+    #[test]
     fn max() {
         assert_eq!(90, calc_max(vec![13, 84, 7, 34, 57, 9, 90]));
+    }
+    #[test]
+    #[should_panic]
+    fn avg_max() {
+        assert_eq!(13, calc_avg(vec![8, 13, 7, 9, 23]));
     }
 }

@@ -48,6 +48,6 @@ fn main() {
     }
 
     println!("{:?}", ids);
- 
+
     println!("Reduction complete!");
 }
