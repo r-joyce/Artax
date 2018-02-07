@@ -1,5 +1,5 @@
 language: rust
-sudo: false
+sudo: true
 dist: trusty
 addons:
     apt:
@@ -20,6 +20,7 @@ addons:
             - pkg-config
             - libtool
             - git
+            - libzmq
 
 notifications:
   slack: slim-co:WIX4gvM82om3YyuBo9Otf5r5
@@ -33,6 +34,8 @@ rust:
 
 matrix:
   allow_failures:
+    - rust: stable
+    - rust: beta
     - rust: nightly
 
 script:
