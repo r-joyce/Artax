@@ -9,6 +9,7 @@ use zmq::{Context, Error};
 use std::thread;
 use protobuf::Message;
 use protos::message;
+use std::sync::Arc;
 
 const THREADS: usize = 4;
 
@@ -32,7 +33,7 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
 
     let mut data = message::Message::new();
     data.merge_from_bytes(&compressed_data).unwrap();
-
+    let values = Arc::new(data.take_tic());
     let mut handles = vec![];
 
     // print!("Vector: [ ");
@@ -44,19 +45,19 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
 
 
     for _thread in 0..THREADS {
-        let values_clone = Vec::clone(&data.take_mz());
+        let values_clone = Arc::clone(&values);
         let handle = thread::spawn(move || {
             if _thread == 0 {
-                reduction::calc_avg(_thread, values_clone.to_vec());
+                reduction::calc_sum(_thread, values_clone.to_vec());
             }
             else if _thread == 1 {
-                reduction::calc_sum(_thread, values_clone.to_vec());
+                reduction::calc_max(_thread, values_clone.to_vec());
             }
             else if _thread == 2 {
                 reduction::calc_min(_thread, values_clone.to_vec());
             }
             else {
-                reduction::calc_max(_thread, values_clone.to_vec());
+                reduction::calc_avg(_thread, values_clone.to_vec());
             }
         });
         handles.push(handle);
@@ -81,4 +82,3 @@ fn main() {
     let addr = "tcp://127.0.0.1:25932";
     run_worker(&mut ctx, addr).unwrap_or_else(|err| println!("{:?}", err));
 }
-
