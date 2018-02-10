@@ -10,6 +10,8 @@ use std::thread;
 use protobuf::Message;
 use protos::message;
 use std::sync::Arc;
+use std::sync::mpsc;
+use std::sync::mpsc::{Sender, Receiver};
 
 const THREADS: usize = 4;
 
@@ -26,51 +28,64 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
     // extract and perform reduction
     let mut reader = snap::Decoder::new();
     let compressed_data = reader.decompress_vec(&send_msg).unwrap();
-
-
-//     fn merge_from_bytes(&mut self, bytes: &[u8]) -> ProtobufResult<()>
-// fn merge_from(&mut self, is: &mut CodedInputStream) -> ProtobufResult<()>
-
     let mut data = message::Message::new();
     data.merge_from_bytes(&compressed_data).unwrap();
+
+    // Create a new vector containing the tic values
     let values = Arc::new(data.take_tic());
     let mut handles = vec![];
+    let (tx, rx): (Sender<u32>, Receiver<u32>) = mpsc::channel();
 
-    // print!("Vector: [ ");
-    // for i in values.iter() {
-    //     print!("{:?} ", i);
-    // }
-    // println!("]");
-
-
-
+    // Perform calculations using threads, pass data to receiver using channel
     for _thread in 0..THREADS {
+        let thread_tx = tx.clone();
         let values_clone = Arc::clone(&values);
         let handle = thread::spawn(move || {
             if _thread == 0 {
-                reduction::calc_sum(_thread, values_clone.to_vec());
+                thread_tx.send(reduction::calc_sum(values_clone.to_vec())).expect("should be sum");
             }
             else if _thread == 1 {
-                reduction::calc_max(_thread, values_clone.to_vec());
+                thread_tx.send(reduction::calc_max(values_clone.to_vec())).expect("should be max");
             }
             else if _thread == 2 {
-                reduction::calc_min(_thread, values_clone.to_vec());
+                thread_tx.send(reduction::calc_min(values_clone.to_vec())).expect("should be min");
             }
             else {
-                reduction::calc_avg(_thread, values_clone.to_vec());
+                thread_tx.send(reduction::calc_avg(values_clone.to_vec())).expect("should be avg");
             }
         });
         handles.push(handle);
     }
 
+    // Create a results vector and push values from receiver channel into it
+    let mut results = Vec::with_capacity(THREADS);
+    for _ in 0..THREADS {
+        results.push(rx.recv().unwrap());
+    }
+
+    print!("Results: [ ");
+    for result in results.iter() {
+        print!("{:?} ", result);
+    }
+    println!("]");
+
+    // Join child threads so main can continue
     for handle in handles {
         handle.join().unwrap();
     }
 
     println!("Reduction complete!");
 
+    // Create message to send back to broker, populate tic vector with results
+    let mut new_data = message::Message::new();
+    new_data.set_tic(results);
+
+    // Compress and encode vector into bytes to be sent
+    let mut writer = snap::Encoder::new();
+    let recompressed_data = writer.compress_vec(&new_data.write_to_bytes().unwrap()).unwrap();
+
     // send message back to the client
-    sock.send(&send_msg, 0)?;
+    sock.send(&recompressed_data, 0)?;
     println!("Message sent back to broker!");
 
     Ok(())

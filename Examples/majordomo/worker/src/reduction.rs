@@ -1,4 +1,5 @@
-pub fn calc_avg(thread_num: usize, data: Vec<u32>) {
+
+pub fn calc_avg(data: Vec<u32>) -> u32 {
     let mut sum = 0;
     for value in data.iter()
     {
@@ -6,20 +7,22 @@ pub fn calc_avg(thread_num: usize, data: Vec<u32>) {
     }
     let avg = sum / data.len() as u32;
 
-    println!("Thread: {:?} -> Average: {:?}", thread_num, avg);
+    println!("Avg: {:?}", avg);
+    avg
 }
 
-pub fn calc_sum(thread_num: usize, data: Vec<u32>) {
+pub fn calc_sum(data: Vec<u32>) -> u32 {
     let mut sum = 0;
     for value in data.iter()
     {
         sum += *value;
     }
 
-    println!("Thread: {:?} -> Sum: {:?}", thread_num, sum);
+    println!("Sum: {:?}", sum);
+    sum
 }
 
-pub fn calc_min(thread_num: usize, data: Vec<u32>) {
+pub fn calc_min(data: Vec<u32>) -> u32 {
     let mut min = data[0];
     for value in data.iter()
     {
@@ -29,10 +32,11 @@ pub fn calc_min(thread_num: usize, data: Vec<u32>) {
         }
     }
 
-    println!("Thread: {:?} -> Min: {:?}", thread_num, min);
+    println!("Min: {:?}", min);
+    min
 }
 
-pub fn calc_max(thread_num: usize, data: Vec<u32>) {
+pub fn calc_max(data: Vec<u32>) -> u32 {
     let mut max = data[0];
     for value in data.iter()
     {
@@ -42,5 +46,6 @@ pub fn calc_max(thread_num: usize, data: Vec<u32>) {
         }
     }
 
-    println!("Thread: {:?} -> Max: {:?}", thread_num, max);
+    println!("Max: {:?}", max);
+    max
 }
