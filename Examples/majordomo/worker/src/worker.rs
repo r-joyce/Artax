@@ -12,6 +12,7 @@ use protos::message;
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
+use reduction::Values;
 
 const THREADS: usize = 4;
 
@@ -34,7 +35,7 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
     // Create a new vector containing the tic values
     let values = Arc::new(data.take_tic());
     let mut handles = vec![];
-    let (tx, rx): (Sender<u32>, Receiver<u32>) = mpsc::channel();
+    let (tx, rx): (Sender<Values>, Receiver<Values>) = mpsc::channel();
 
     // Perform calculations using threads, pass data to receiver using channel
     for _thread in 0..THREADS {
@@ -57,10 +58,19 @@ fn run_worker(ctx: &mut Context, addr: &str) -> Result<(), Error> {
         handles.push(handle);
     }
 
-    // Create a results vector and push values from receiver channel into it
-    let mut results = Vec::with_capacity(THREADS);
+    // Create a results vector and insert values from receiver channel into it
+    // Order: [ avg, sum, min, max ]
+    let mut results: Vec<u32> = vec![0; 4];
+
     for _ in 0..THREADS {
-        results.push(rx.recv().unwrap());
+        let temp_data = rx.recv().unwrap();
+        match temp_data.calc {
+            1 => results[0] = temp_data.value,
+            2 => results[1] = temp_data.value,
+            3 => results[2] = temp_data.value,
+            4 => results[3] = temp_data.value,
+            x => println!("Unexpected calculation returned!"),
+        }
     }
 
     print!("Results: [ ");
