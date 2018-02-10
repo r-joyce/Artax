@@ -1,3 +1,48 @@
 language: rust
+sudo: true
+dist: trusty
+addons:
+    apt:
+        packages:
+            - libssl-dev
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - make
+            - automake
+            - gcc
+            - build-essential
+            - g++
+            - cpp
+            - libc6-dev
+            - man-db
+            - autoconf
+            - pkg-config
+            - libtool
+            - git
+            - libzmq3-dev
+
+notifications:
+  slack: slim-co:WIX4gvM82om3YyuBo9Otf5r5
+
+cache: cargo
+
 rust:
+  - stable
+  - beta
   - nightly
+
+matrix:
+  allow_failures:
+    - rust: stable
+    - rust: beta
+
+script:
+- cargo clean
+- cargo build --no-default-features
+- cargo test
+
+after_success: |
+  bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+  cargo tarpaulin --out Xml
+  bash <(curl -s https://codecov.io/bash)
