@@ -42,14 +42,39 @@ fn compress_data(data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Cont
     /*Start of KJ's Code*/
     sock.connect(addr)?;
     // send the data to the broker
-    //println!("It gets here");
     sock.send(&comp_data, 0)?;
 
     // received the message from the worker
     let received_message: i32 = Default::default();
-     // let mut worker_res: Vec<u8> = Vec::new();
-    let mut worker_res: Vec<u8> = sock.recv_bytes(received_message)?; 
-    // get message back
+    let mut worker_res: Vec<u8> = sock.recv_bytes(received_message)?;
+
+    // decompress the data 
+    let mut reader = snap::Decoder::new();
+    let compressed_data = reader.decompress_vec(&worker_res).unwrap();
+
+    let mut results = message::Message::new();
+    results.merge_from_bytes(&compressed_data).unwrap();
+
+    let mut values = Vec::new();
+    values = results.take_tic();
+
+    let mut j = 0;
+    // print the results
+    for i in values.iter() {
+        if j == 0 {
+            println!("Avg: {:?} ", i);
+        }
+        else if j == 1 {
+            println!("Sum: {:?} ", i);
+        }
+        else if j == 2 {
+            println!("Min: {:?} ", i);
+        }
+        else {
+            println!("Max: {:?} ", i);
+        }
+        j = j + 1;
+    }
 
     /*End of KJ's Code*/
     Ok(())
@@ -96,11 +121,11 @@ fn main() {
                 process::exit(1);
             }
 
-            let iter = 0..*num;
-            for i in iter {
-                // Pass some stuff to the broker here
-                println!("[+] {}", i);
-            }
+            // let iter = 0..*num;
+            // for i in iter {
+            //     // Pass some stuff to the broker here
+            //     println!("[+] {}", i);
+            // }
 
             println!("[+] Done");
         },

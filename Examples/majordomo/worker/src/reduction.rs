@@ -1,4 +1,3 @@
-
 pub struct Values {
     pub value: u32,
     pub calc: u32,
