@@ -1,6 +1,7 @@
 language: rust
 sudo: true
-dist: trusty
+os:
+  - windows
 addons:
     apt:
         packages:
@@ -39,7 +40,7 @@ matrix:
 
 script:
 - cargo clean
-- cargo build --no-default-features
+- cargo build --release
 - cargo test
 
 after_success: |
