@@ -1,14 +1,13 @@
 extern crate zmq;
-use zmq::{Context};
-use std::io;
 extern crate rustc_serialize;
 extern crate protobuf;
 extern crate snap;
 extern crate csv;
 
 mod protos;
-use protos::message;
 
+use protos::message;
+use zmq::{Context, SNDMORE};
 use csv::{Reader};
 use std::error::Error;
 use std::process;
@@ -35,28 +34,34 @@ fn build_object(data: &mut message::Message, time: Vec<u64>, tic: Vec<u32>) -> R
 }
 
 // Compress and send data
-fn compress_data(data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Context, addr: &str) -> Result<(), Box<Error>> {
+fn compress_data(algorithm: &String, data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Context, addr: &str) -> Result<(), Box<Error>> {
     let mut writer = snap::Encoder::new();
     *comp_data = writer.compress_vec(&data.write_to_bytes().unwrap()).unwrap();
     let sock = ctx.socket(zmq::REQ)?;
-    /*Start of KJ's Code*/
     sock.connect(addr)?;
+
     // send the data to the broker
+    match &algorithm as &str {
+        "reduction" => sock.send("Reduction".as_ref(), SNDMORE)?,
+        "thrash" => sock.send("Thrash".as_ref(), SNDMORE)?,
+        "msms" => sock.send("Msms".as_ref(), SNDMORE)?,
+        "resolution" => sock.send("Resolution".as_ref(), SNDMORE)?,
+        _ => panic!("Not a possible analysis!"),
+    }
     sock.send(&comp_data, 0)?;
 
-    // received the message from the worker
+    // received the message from the broker
     let received_message: i32 = Default::default();
-    let mut worker_res: Vec<u8> = sock.recv_bytes(received_message)?;
+    let worker_res: Vec<u8> = sock.recv_bytes(received_message)?;
 
-    // decompress the data 
+    // decompress the data
     let mut reader = snap::Decoder::new();
     let compressed_data = reader.decompress_vec(&worker_res).unwrap();
 
     let mut results = message::Message::new();
     results.merge_from_bytes(&compressed_data).unwrap();
 
-    let mut values = Vec::new();
-    values = results.take_tic();
+    let values = results.take_tic();
 
     let mut j = 0;
     // print the results
@@ -76,6 +81,8 @@ fn compress_data(data: message::Message, comp_data: &mut Vec<u8>, ctx: &mut Cont
         j = j + 1;
     }
 
+    println!();
+
     /*End of KJ's Code*/
     Ok(())
 }
@@ -93,39 +100,37 @@ fn main() {
         3 => {
             // gather file name and initialize variables
             let file = &args[1];
-            let num = &args[2].parse::<u32>().unwrap();
-            let mut data = message::Message::new();
-            let mut tic: Vec<u32> = Vec::new();
-            let mut time: Vec<u64> = Vec::new();
-            let mut compressed_data: Vec<u8> = Vec::new();
+            let algorithm = &args[2].to_lowercase();
+
             let mut ctx = Context::new();
 		    let addr = "tcp://127.0.0.1:25933";
 
             println!("[+] Opening {}", file);
 
-            // parse input csv
-            if let Err(err) = get_input(file, &mut time, &mut tic) {
-                println!("[!] Error processing file: {}", err);
-                process::exit(1);
-            }
+            loop {
+                let mut data = message::Message::new();
+                let mut tic: Vec<u32> = Vec::new();
+                let mut time: Vec<u64> = Vec::new();
+                let mut compressed_data: Vec<u8> = Vec::new();
 
-            // add the gathered data vectors to a single object
-            if let Err(err) = build_object(&mut data, time, tic) {
-                println!("[!] Error adding vectors to data object: {}", err);
-                process::exit(1);
-            }
+                // parse input csv
+                if let Err(err) = get_input(file, &mut time, &mut tic) {
+                    println!("[!] Error processing file: {}", err);
+                    process::exit(1);
+                }
 
-            // compress the data object
-            if let Err(err) = compress_data(data, &mut compressed_data, &mut ctx, addr) {
-                println!("[!] Error compressing the data: {}", err);
-                process::exit(1);
-            }
+                // add the gathered data vectors to a single object
+                if let Err(err) = build_object(&mut data, time, tic) {
+                    println!("[!] Error adding vectors to data object: {}", err);
+                    process::exit(1);
+                }
 
-            // let iter = 0..*num;
-            // for i in iter {
-            //     // Pass some stuff to the broker here
-            //     println!("[+] {}", i);
-            // }
+                // compress the data object
+                if let Err(err) = compress_data(algorithm, data, &mut compressed_data, &mut ctx, addr) {
+                    println!("[!] Error compressing the data: {}", err);
+                    process::exit(1);
+                }
+            }
 
             println!("[+] Done");
         },

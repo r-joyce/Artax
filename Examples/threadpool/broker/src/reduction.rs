@@ -1,3 +1,9 @@
+use std::thread;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+
 pub struct Values {
     pub value: u32,
     pub calc: u32,
@@ -20,8 +26,6 @@ pub fn calc_avg(data: Vec<u32>) -> Values {
     }
     let avg = sum / data.len() as u32;
 
-    println!("Avg: {:?}", avg);
-
     Values::new(avg, 1)
 }
 
@@ -31,8 +35,6 @@ pub fn calc_sum(data: Vec<u32>) -> Values {
     {
         sum += *value;
     }
-
-    println!("Sum: {:?}", sum);
 
     Values::new(sum, 2)
 }
@@ -47,8 +49,6 @@ pub fn calc_min(data: Vec<u32>) -> Values {
         }
     }
 
-    println!("Min: {:?}", min);
-
     Values::new(min, 3)
 }
 
@@ -61,8 +61,6 @@ pub fn calc_max(data: Vec<u32>) -> Values {
             max = *value;
         }
     }
-
-    println!("Max: {:?}", max);
 
     Values::new(max, 4)
 }
