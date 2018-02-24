@@ -14,5 +14,20 @@ message SetupMessage {
     double horizontal = 1;
     double vertical = 2;
     int32 samples = 3;
-     
+
+}
+
+message ReductionMessage {
+    uint32 sum = 1;
+    uint32 avg = 2;
+    message Min {
+        int32 min_x = 1;
+        uint32 min_y = 2;
+    }
+    Min min = 3;
+    message Max {
+        int32 max_x = 1;
+        uint32 max_y = 2;
+    }
+    Max max = 4;
 }

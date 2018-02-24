@@ -5,6 +5,7 @@ extern crate snap;
 extern crate csv;
 
 mod protos;
+mod reduction;
 
 use protos::message;
 use zmq::{Context, SNDMORE};
@@ -13,22 +14,26 @@ use std::error::Error;
 use std::process;
 use std::env;
 use protobuf::Message;
+use reduction::*;
 
-fn get_input(file: &String, time: &mut Vec<u64>, tic: &mut Vec<u32>) -> Result<(), Box<Error>> {
+fn get_input(file: &String, mz: &mut Vec<i32>, tic: &mut Vec<u32>) -> Result<(), Box<Error>> {
     let mut reader = Reader::from_file(file)
         .unwrap()
         .has_headers(false);
 
+    let mut count = 0;
+
     for row in reader.records() {
         let record = row?;
-        time.push(record[0].parse().ok().unwrap());
+        mz.push(count);
         tic.push(record[1].parse().ok().unwrap());
+        count += 1;
     }
     Ok(())
 }
 
-fn build_object(data: &mut message::Message, time: Vec<u64>, tic: Vec<u32>) -> Result<(), Box<Error>> {
-    data.set_time_stamps(time);
+fn build_object(data: &mut message::Message, mz: Vec<i32>, tic: Vec<u32>) -> Result<(), Box<Error>> {
+    data.set_mz(mz);
     data.set_tic(tic);
     Ok(())
 }
@@ -58,28 +63,19 @@ fn compress_data(algorithm: &String, data: message::Message, comp_data: &mut Vec
     let mut reader = snap::Decoder::new();
     let compressed_data = reader.decompress_vec(&worker_res).unwrap();
 
-    let mut results = message::Message::new();
+    let mut results = message::ReductionMessage::new();
     results.merge_from_bytes(&compressed_data).unwrap();
 
-    let values = results.take_tic();
+    let mut reduction = Reduction::new();
+    reduction.sum = results.get_sum();
+    reduction.avg = results.get_avg();
+    reduction.min.0 = results.get_min().get_min_x();
+    reduction.min.1 = results.get_min().get_min_y();
+    reduction.max.0 = results.get_max().get_max_x();
+    reduction.max.1 = results.get_max().get_max_y();
 
-    let mut j = 0;
-    // print the results
-    for i in values.iter() {
-        if j == 0 {
-            println!("Avg: {:?} ", i);
-        }
-        else if j == 1 {
-            println!("Sum: {:?} ", i);
-        }
-        else if j == 2 {
-            println!("Min: {:?} ", i);
-        }
-        else {
-            println!("Max: {:?} ", i);
-        }
-        j = j + 1;
-    }
+    println!("Sum: {:?}\nAvg: {:?}\nMin: [{:?}, {:?}]\nMax: [{:?}, {:?}]",
+            reduction.sum, reduction.avg, reduction.min.0, reduction.min.1, reduction.max.0, reduction.max.1);
 
     println!();
 
@@ -89,8 +85,8 @@ fn compress_data(algorithm: &String, data: message::Message, comp_data: &mut Vec
 
 fn help() {
     println!("[!] Error: Expecting a csv file argument and an integer for looping");
-    println!("Usage: cargo run <my_file.csv> <number_of_times_to_loop>");
-    println!("Example: cargo run my_data.csv 10");
+    println!("Usage: cargo run --bin client <my_file.csv> <analysis_type>");
+    println!("Example: cargo run --bin client my_data.csv Reduction");
     process::exit(1);
 }
 
@@ -110,17 +106,17 @@ fn main() {
             loop {
                 let mut data = message::Message::new();
                 let mut tic: Vec<u32> = Vec::new();
-                let mut time: Vec<u64> = Vec::new();
+                let mut mz: Vec<i32> = Vec::new();
                 let mut compressed_data: Vec<u8> = Vec::new();
 
                 // parse input csv
-                if let Err(err) = get_input(file, &mut time, &mut tic) {
+                if let Err(err) = get_input(file, &mut mz, &mut tic) {
                     println!("[!] Error processing file: {}", err);
                     process::exit(1);
                 }
 
                 // add the gathered data vectors to a single object
-                if let Err(err) = build_object(&mut data, time, tic) {
+                if let Err(err) = build_object(&mut data, mz, tic) {
                     println!("[!] Error adding vectors to data object: {}", err);
                     process::exit(1);
                 }
@@ -131,8 +127,6 @@ fn main() {
                     process::exit(1);
                 }
             }
-
-            println!("[+] Done");
         },
         _ => {
             help();
