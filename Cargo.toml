@@ -22,6 +22,7 @@ lzf = "*"
 rustc-serialize = "0.3"
 snap = "*"
 csv = "*"
+time = "0.1"
 
 [[bin]]
 name = "broker"
