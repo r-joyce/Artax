@@ -1,7 +1,0 @@
-[package]
-name = "flatb"
-version = "0.1.0"
-authors = ["Ryan <r-m-joyce@hotmail.com>"]
-
-[dependencies]
-flatbuffers = "*"

@@ -1,0 +1,21 @@
+[package]
+name = "threadpool"
+version = "0.1.0"
+authors = ["Wes Fletcher <wesley.fletcher@email.wsu.edu>"]
+
+[dependencies]
+zmq = "*"
+protoc-rust = "*"
+protobuf = "*"
+bincode = "0.6"
+chrono = "0.2"
+serde = "0.8"
+serde_derive = "0.8"
+lzf = "*"
+rustc-serialize = "0.3"
+snap = "*"
+csv = "*"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
