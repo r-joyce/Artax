@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+message Message {
+    repeated int32 mz = 1;
+    repeated uint32 tic = 2;
+    repeated uint64 time_stamps = 3;
+}
+
+message TofWidthMessage {
+    uint64 pusher_pulse_width = 1;
+}
+
+message SetupMessage {
+    double horizontal = 1;
+    double vertical = 2;
+    int32 samples = 3;
+
+}
+
+message ReductionMessage {
+    uint32 sum = 1;
+    uint32 avg = 2;
+    message Min {
+        int32 min_x = 1;
+        uint32 min_y = 2;
+    }
+    Min min = 3;
+    message Max {
+        int32 max_x = 1;
+        uint32 max_y = 2;
+    }
+    Max max = 4;
+}
+
+message PeakMessage {
+    int32 peak = 1;
+}

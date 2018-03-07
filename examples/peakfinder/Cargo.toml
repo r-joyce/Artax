@@ -1,0 +1,33 @@
+[package]
+name = "artax"
+version = "0.1.0"
+authors = ["KJ Dorow <kevin.e.dorow@wsu.edu>",
+           "Ryan Joyce <ryan.joyce@wsu.edu>",
+           "Wes Fletcher <wesley.fletcherw@wsu.edu>"]
+repository = "https://github.com/r-joyce/Artax"
+
+[lib]
+name = "reduction"
+path = "client/src/reduction.rs"
+
+[dependencies]
+zmq = "*"
+protoc-rust = "*"
+protobuf = "*"
+bincode = "0.6"
+chrono = "0.2"
+serde = "0.8"
+serde_derive = "0.8"
+lzf = "*"
+rustc-serialize = "0.3"
+snap = "*"
+csv = "*"
+time = "0.1"
+
+[[bin]]
+name = "broker"
+path = "main.rs"
+
+[[bin]]
+name = "client"
+path = "client/src/client.rs"
