@@ -5,149 +5,124 @@ extern crate snap;
 mod protos;
 mod reduction;
 
-use zmq::{Context, Error};
-use std::thread;
+use zmq::{Context, Error, SNDMORE};
+use std::process;
 use protobuf::Message;
 use protos::message;
-use std::sync::Arc;
-use std::sync::mpsc;
-use std::sync::mpsc::{Sender, Receiver};
 use reduction::*;
 
-const THREADS: usize = 4;
 
-// Broker subscribes to client and will make a request from to a worker
-// it will send the message to the worker
-fn run_broker(ctx: &mut Context, addr: &str) -> Result<(), Box<Error>> {
+fn main() {
+    println!("[+] Initializing artax...");
+    // Artax <--> Rust Acquisition Software (server)
+    let context = Context::new();
+    let server_addr = "tcp://127.0.0.1:25930";
+    let subscriber = context.socket(zmq::SUB).unwrap();
 
-    let sock = ctx.socket(zmq::REP)?;
-    sock.bind(addr)?;
+    subscriber
+        .connect(server_addr)
+        .expect("failed connecting subscriber");
+
+    subscriber
+        .set_subscribe("data".as_bytes())
+        .expect("failed subscribing");
+
+    // Artax <--> Falkor (client)
+    let req_addr = "tcp://127.0.0.1:25933";
+    let receiver = context.socket(zmq::REP).unwrap();
+    receiver
+        .bind(req_addr)
+        .expect("failed binding router");
+
+    //let sub_addr = "tcp://127.0.0.1:25931";
+    //let publisher = context.socket(zmq::REP).unwrap();
+    //publisher
+    //    .bind(sub_addr)
+    //    .expect("failed binding publisher");
+
+    println!("[+] Begin broker...");
+
+
+    if let Err(err) = run_broker(receiver, subscriber) {
+        println!("[!] Error running Artax: {}", err);
+        process::exit(1);
+    }
+}
+
+// Broker: subscribes to Server, receives requests from Client, publishes results to Client
+// Receive data from server, perform client-requested analysis, and publish results back to client
+fn run_broker(receiver: zmq::Socket, subscriber: zmq::Socket) -> Result<(), Box<Error>> {
 
     loop {
-        // Receive algorithm string and data
-        let received_message: i32 = Default::default();
-        let job = sock.recv_string(0).unwrap().unwrap();
-    	let send_msg: Vec<u8> = sock.recv_bytes(received_message)?;
-        println!("Message received!");
+        // Receive topic string and data
+        let topic = subscriber.recv_string(0).unwrap().unwrap();
+        let new_data: Vec<u8> = subscriber.recv_bytes(0).unwrap();
+        println!("Message received! Topic {:?}", topic);
 
-        //Decompress data
+        // Decompress data
         let mut reader = snap::Decoder::new();
-        let compressed_data = reader.decompress_vec(&send_msg).unwrap();
-        let mut data = message::Message::new();
-        data.merge_from_bytes(&compressed_data).unwrap();
+        let uncompressed_data = reader.decompress_vec(&new_data).unwrap();
+        let mut new_message = message::Message::new();
+        new_message.merge_from_bytes(&uncompressed_data).unwrap();
 
-    	// Distribute job to workers
-        let results = worker_task(job, data);
+        // Poll for client request
+        let mut item = [
+            receiver.as_poll_item(zmq::POLLIN)
+        ];
+        zmq::poll(&mut item, -1);
 
-        // Package results message to send back to client
-        let mut new_data = message::ReductionMessage::new();
-        let mut new_min = message::ReductionMessage_Min::new();
-        let mut new_max = message::ReductionMessage_Max::new();
-        new_data.set_sum(results.sum);
-        new_data.set_avg(results.avg);
-        new_min.set_min_x(results.min.0);
-        new_min.set_min_y(results.min.1);
-        new_data.set_min(new_min);
-        new_max.set_max_x(results.max.0);
-        new_max.set_max_y(results.max.1);
-        new_data.set_max(new_max);
-        let mut writer = snap::Encoder::new();
-        let recompressed_data = writer.compress_vec(&new_data.write_to_bytes().unwrap()).unwrap();
+        if item[0].is_readable() {
+            //receiver.recv_bytes(0).unwrap();
+            //receiver.recv_bytes(0).unwrap();
+            let job = receiver.recv_string(0).unwrap().unwrap();
 
-        // send message back to the client
-        sock.send(&recompressed_data, 0)?;
-        println!("Message sent to client!");
-        println!();
+            // Determine analysis
+            match job.as_ref() {
+                "reduction" => {
+                    let mut results = reduction_worker(&mut new_message);
+
+                    // Compress results
+                    let mut writer = snap::Encoder::new();
+                    let recompressed_data = writer.compress_vec(&results.write_to_bytes().unwrap()).unwrap();
+
+                    // Send results back to the client
+                    receiver.send(&recompressed_data, 0).unwrap();
+                    println!("Message sent to client!");
+                    println!();
+                }
+                _ => {
+                    println!("Analysis does not exist!");
+                    process::exit(1);
+                }
+            }
+        }
     }
 
     Ok(())
 }
 
-// Distribute task to worker threads
-fn worker_task(job: String, mut data: message::Message) -> reduction::Reduction {
+fn reduction_worker(new_message: &mut message::Message) -> message::ReductionMessage {
 
-    match job.as_str() {
-        "Reduction" => {
-            // Create a new vector containing the tic values
-            let mz_values = Arc::new(data.take_mz());
-            let tic_values = Arc::new(data.take_tic());
-            let mut handles = vec![];
-            let (tx, rx): (Sender<Values>, Receiver<Values>) = mpsc::channel();
+    // Perform reduction
+    let results = reduction(new_message);
 
-            // Perform calculations using threads, pass data to receiver using channel
-            for _thread in 0..THREADS {
-                let thread_tx = tx.clone();
-                let mz_values_clone = Arc::clone(&mz_values);
-                let tic_values_clone = Arc::clone(&tic_values);
-                let handle = thread::spawn(move || {
-                    if _thread == 0 {
-                        thread_tx.send(reduction::calc_sum(tic_values_clone.to_vec())).expect("should be sum");
-                    }
-                    else if _thread == 1 {
-                        thread_tx.send(reduction::calc_max(mz_values_clone.to_vec(), tic_values_clone.to_vec())).expect("should be max");
-                    }
-                    else if _thread == 2 {
-                        thread_tx.send(reduction::calc_min(mz_values_clone.to_vec(), tic_values_clone.to_vec())).expect("should be min");
-                    }
-                    else {
-                        thread_tx.send(reduction::calc_avg(tic_values_clone.to_vec())).expect("should be avg");
-                    }
-                });
-                handles.push(handle);
-            }
+    // Package results message to send back to Falkor
+    let mut new_data = message::ReductionMessage::new();
+    let mut new_min = message::ReductionMessage_Min::new();
+    let mut new_max = message::ReductionMessage_Max::new();
+    new_data.set_sum(results.sum);
+    new_data.set_avg(results.avg);
+    new_min.set_min_x(results.min.0);
+    new_min.set_min_y(results.min.1);
+    new_data.set_min(new_min);
+    new_max.set_max_x(results.max.0);
+    new_max.set_max_y(results.max.1);
+    new_data.set_max(new_max);
 
-            // Create a results vector and insert values from receiver channel into it
-            // Order: [ avg, sum, min, max ]
-            let mut results = Reduction::new();
-
-            for _ in 0..THREADS {
-                let temp_data = rx.recv().unwrap();
-                match temp_data.calc {
-                    1 => results.sum = temp_data.value,
-                    2 => results.avg = temp_data.value,
-                    3 => {
-                            results.min.0 = temp_data.point.x;
-                            results.min.1 = temp_data.point.y
-                         }
-                    4 => {
-                            results.max.0 = temp_data.point.x;
-                            results.max.1 = temp_data.point.y
-                         }
-                    _ => println!("Unexpected calculation returned!"),
-                }
-            }
-
-            println!("Sum: {:?}\nAvg: {:?}\nMin: [{:?}, {:?}]\nMax: [{:?}, {:?}]",
-                    results.sum, results.avg, results.min.0, results.min.1, results.max.0, results.max.1);
-
-            // Join child threads so main can continue
-            for handle in handles {
-                handle.join().unwrap();
-            }
-
-            println!("Reduction complete!");
-
-            results
-        }
-        _ => {
-            let results = Reduction::new();
-            results
-        }
-        /*"Thrash" => {
-
-            },
-        "Msms" => {
-
-        },
-        "Resolution" => {
-
-        },
-        */
-    }
+    new_data
 }
 
-fn main() {
-    let mut ctx = Context::new();
-    let addr = "tcp://127.0.0.1:25933";
-    run_broker(&mut ctx, addr).unwrap_or_else(|err| println!("{:?}", err));
+fn help() {
+    println!("Usage: cargo run --bin artax");
+    process::exit(1);
 }
