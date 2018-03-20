@@ -14,7 +14,7 @@ def main(args):
 	with open(args.infile) as file:
 		for row in file:
 			split = re.split(',', row)
-			maths = int(float(split[0]) * 10000000000)
+			maths = int(float(split[0]) * 100000)
 			if(args.verbose):
 				print(row, end="")
 			print('{},{}'.format(maths, split[1]), end='')
