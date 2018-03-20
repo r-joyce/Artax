@@ -1,0 +1,6 @@
+[package]
+name = "rpower"
+version = "0.1.0"
+authors = ["Ryan <ryan.joyce@wsu.edu>"]
+
+[dependencies]
