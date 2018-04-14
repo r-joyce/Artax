@@ -92,9 +92,6 @@ fn run_client(algorithm: String, request: zmq::Socket) -> Result<(), Box<Error>>
             panic!("Not a possible analysis!")
         }
     }
-
-    /*End of KJ's Code*/
-    Ok(())
 }
 
 fn help() {

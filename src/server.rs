@@ -8,7 +8,6 @@ mod protos;
 use protobuf::Message;
 use protos::message;
 use zmq::{Context, SNDMORE};
-use std::error::Error;
 use std::process;
 use std::thread;
 use std::time::Duration;
