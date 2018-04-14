@@ -1,48 +1,37 @@
 use std::process::{Command, Stdio};
-// use std::time::{SystemTime};
+use std::cell::RefCell;
 
 fn main() {
 
-    let mut procs: Vec<std::process::Child> = Vec::new();
-    let mut cmd =
-        Command::new("cmd")
+    // Vector to manage the processes, should most likely be some kind of queue
+    let mut procs: Vec<RefCell<std::process::Child>> = Vec::new();
+
+    // Add the first process to run
+    let cmd =
+        RefCell::new(Command::new("cmd")
         .args(&["/C", "hello.exe"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .unwrap();
+        .unwrap());
     procs.push(cmd);
 
-    let mut cmd2 =
-        Command::new("cmd")
+    // Add the second process
+    let cmd2 =
+        RefCell::new(Command::new("cmd")
         .args(&["/C", "worker.exe abc 123"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .unwrap();
+        .unwrap());
     procs.push(cmd2);
 
     loop {
         // It's streaming here
         // Broker checks for additional commands here
 
-        for p in &mut procs {
-            let status = p.try_wait();
-
-            match status {
-                Ok(None) => {
-                    println!("[{:?}] Running...", p.id());
-                }
-                Ok(Some(T)) => {
-                    println!("[{:?}] Status: {:?}", p.id(), status);
-                    // let index = procs.iter().position(|x| *x == p).unwrap();
-                    // procs.remove(index);
-                    // let x = procs.remove_item(&p);
-                }
-                _err => {
-                    println!("Hurr durr, there was an errur");
-                }
-            }
-        }
-    }    
+        procs.retain(move |x| x.borrow_mut().try_wait().unwrap() == None);
+        // procs[0].borrow_mut().kill().unwrap();
+        // println!("{:?}", procs);
+    }
 }
