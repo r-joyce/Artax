@@ -1,19 +1,27 @@
 extern crate protobuf;
 extern crate zmq;
 extern crate snap;
+extern crate config;
 
 mod protos;
 mod reduction;
 
-use zmq::{Context, Error, SNDMORE};
+use zmq::{Context, Error};
 use std::process;
+use std::collections::HashMap;
 use protobuf::Message;
 use protos::message;
 use reduction::*;
 
-
 fn main() {
     println!("[+] Initializing artax...");
+    println!("[+] Loading config file...");
+    let mut settings = config::Config::default();
+    settings.merge(config::File::with_name("config")).unwrap();
+    for (key, value) in &settings.try_into::<HashMap<String, String>>().unwrap() {
+        println!("     {}: {}", key, value);
+    }
+
     // Artax <--> Rust Acquisition Software (server)
     let context = Context::new();
     let server_addr = "tcp://127.0.0.1:25930";
@@ -35,13 +43,12 @@ fn main() {
         .expect("failed binding router");
 
     //let sub_addr = "tcp://127.0.0.1:25931";
-    //let publisher = context.socket(zmq::REP).unwrap();
+    //let publisher = context.socket(zmq::PUB).unwrap();
     //publisher
     //    .bind(sub_addr)
     //    .expect("failed binding publisher");
 
     println!("[+] Begin broker...");
-
 
     if let Err(err) = run_broker(receiver, subscriber) {
         println!("[!] Error running Artax: {}", err);
@@ -97,8 +104,6 @@ fn run_broker(receiver: zmq::Socket, subscriber: zmq::Socket) -> Result<(), Box<
             }
         }
     }
-
-    Ok(())
 }
 
 fn reduction_worker(new_message: &mut message::Message) -> message::ReductionMessage {
