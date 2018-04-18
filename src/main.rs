@@ -1,34 +1,35 @@
+#![allow(dead_code)]
+
 extern crate protobuf;
 extern crate zmq;
 extern crate snap;
 extern crate config;
 
-mod protos;
 mod reduction;
+mod protos;
 
-use zmq::{Context, Error};
-use std::process;
+use zmq::{Context, Error, SNDMORE};
+use std::process::*;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use protobuf::Message;
-use protos::message;
-use reduction::*;
+
 
 fn main() {
     println!("[+] Initializing artax...");
+
+    // Load config file port settings
     println!("[+] Loading config file...");
     let mut settings = config::Config::default();
     settings.merge(config::File::with_name("config")).unwrap();
-    for (key, value) in &settings.try_into::<HashMap<String, String>>().unwrap() {
-        println!("     {}: {}", key, value);
-    }
+    let x = &settings.try_into::<HashMap<String, String>>().unwrap();
 
     // Artax <--> Rust Acquisition Software (server)
     let context = Context::new();
-    let server_addr = "tcp://127.0.0.1:25930";
+    let server_addr = format!("{}:{}", &x.get("host").unwrap(), &x.get("acquisition_sub_port").unwrap());
     let subscriber = context.socket(zmq::SUB).unwrap();
 
     subscriber
-        .connect(server_addr)
+        .connect(&server_addr)
         .expect("failed connecting subscriber");
 
     subscriber
@@ -36,29 +37,84 @@ fn main() {
         .expect("failed subscribing");
 
     // Artax <--> Falkor (client)
-    let req_addr = "tcp://127.0.0.1:25933";
+    let req_addr = format!("{}:{}", &x.get("host").unwrap(), &x.get("falkor_reply_port").unwrap());
     let receiver = context.socket(zmq::REP).unwrap();
     receiver
-        .bind(req_addr)
+        .bind(&req_addr)
         .expect("failed binding router");
 
-    //let sub_addr = "tcp://127.0.0.1:25931";
-    //let publisher = context.socket(zmq::PUB).unwrap();
-    //publisher
-    //    .bind(sub_addr)
-    //    .expect("failed binding publisher");
+    let sub_addr = format!("{}:{}", &x.get("host").unwrap(), &x.get("falkor_pub_port").unwrap());
+    let publisher = context.socket(zmq::PUB).unwrap();
+    publisher
+        .bind(&sub_addr)
+        .expect("failed binding publisher");
+
+    // Artax <--> Workers
+    // Reduction worker
+    let red_worker_rep_addr = "tcp://127.0.0.1:5555";
+    let red_worker_pull_addr = "tcp://127.0.0.1:5560";
+    let red_worker_push_addr = "tcp://127.0.0.1:5565";
+    let red_req = context.socket(zmq::REQ).unwrap();
+    red_req
+        .bind(red_worker_rep_addr)
+        .expect("failed binding reduction worker REQ-REP");
+    let red_push = context.socket(zmq::PUSH).unwrap();
+    red_push
+        .bind(red_worker_pull_addr)
+        .expect("failed binding reduction worker PUSH-PULL");
+    let red_pull = context.socket(zmq::PULL).unwrap();
+    red_pull
+        .bind(red_worker_push_addr)
+        .expect("failed binding reduction worker PULL-PUSH");
+
+    // Resolving Power worker
+    let res_worker_rep_addr = "tcp://127.0.0.1:5556";
+    let res_worker_pull_addr = "tcp://127.0.0.1:5561";
+    let res_worker_push_addr = "tcp://127.0.0.1:5566";
+    let res_req = context.socket(zmq::REQ).unwrap();
+    res_req
+        .bind(res_worker_rep_addr)
+        .expect("failed binding reduction worker REQ-REP");
+    let res_push = context.socket(zmq::PUSH).unwrap();
+    res_push
+        .bind(res_worker_pull_addr)
+        .expect("failed binding reduction worker PUSH-PULL");
+    let res_pull = context.socket(zmq::PULL).unwrap();
+    res_pull
+        .bind(res_worker_push_addr)
+        .expect("failed binding reduction worker PULL-PUSH");
+
 
     println!("[+] Begin broker...");
 
-    if let Err(err) = run_broker(receiver, subscriber) {
-        println!("[!] Error running Artax: {}", err);
-        process::exit(1);
-    }
+
+    if let Err(err) =
+        run_broker(receiver, subscriber, publisher, red_req, red_push, red_pull, res_req, res_push, res_pull) {
+            println!("[!] Error running Artax: {}", err);
+            std::process::exit(1);
+        }
 }
 
 // Broker: subscribes to Server, receives requests from Client, publishes results to Client
 // Receive data from server, perform client-requested analysis, and publish results back to client
-fn run_broker(receiver: zmq::Socket, subscriber: zmq::Socket) -> Result<(), Box<Error>> {
+fn run_broker(
+    receiver: zmq::Socket,
+    subscriber: zmq::Socket,
+    publisher: zmq::Socket,
+    red_req: zmq::Socket,
+    red_push: zmq::Socket,
+    red_pull: zmq::Socket,
+    _res_req: zmq::Socket,
+    _res_push: zmq::Socket,
+    _res_pull: zmq::Socket
+) -> Result<(), Box<Error>> {
+
+    // Workers
+    let mut worker_procs: Vec<RefCell<Child>> = Vec::new();
+    let reduction = RefCell::new(Command::new("cmd").args(&["/C", "worker.exe 0 5555 5560 5565"]).spawn().unwrap());
+    let res_power = RefCell::new(Command::new("cmd").args(&["/C", "worker.exe 1 5556 5561 5566"]).spawn().unwrap());
+    worker_procs.push(reduction);
+    worker_procs.push(res_power);
 
     loop {
         // Receive topic string and data
@@ -66,68 +122,56 @@ fn run_broker(receiver: zmq::Socket, subscriber: zmq::Socket) -> Result<(), Box<
         let new_data: Vec<u8> = subscriber.recv_bytes(0).unwrap();
         println!("Message received! Topic {:?}", topic);
 
-        // Decompress data
-        let mut reader = snap::Decoder::new();
-        let uncompressed_data = reader.decompress_vec(&new_data).unwrap();
-        let mut new_message = message::Message::new();
-        new_message.merge_from_bytes(&uncompressed_data).unwrap();
-
         // Poll for client request
         let mut item = [
             receiver.as_poll_item(zmq::POLLIN)
         ];
-        zmq::poll(&mut item, -1);
+        zmq::poll(&mut item, -1).unwrap();
 
         if item[0].is_readable() {
-            //receiver.recv_bytes(0).unwrap();
-            //receiver.recv_bytes(0).unwrap();
             let job = receiver.recv_string(0).unwrap().unwrap();
+            receiver.send("ack", 0).unwrap();
 
             // Determine analysis
             match job.as_ref() {
+                // Reduction
                 "reduction" => {
-                    let mut results = reduction_worker(&mut new_message);
+                    // Run Worker
+                    // Send reduction enum to worker, receive acknowledgement
+                    red_req.send("0", 0).unwrap();
+                    let _ = red_req.recv_string(0).unwrap().unwrap();
 
-                    // Compress results
-                    let mut writer = snap::Encoder::new();
-                    let recompressed_data = writer.compress_vec(&results.write_to_bytes().unwrap()).unwrap();
+                    // Send data to worker
+                    red_push.send(&new_data, 0).unwrap();
+
+                    // Receive results from worker
+                    let results: Vec<u8> = red_pull.recv_bytes(0).unwrap();
 
                     // Send results back to the client
-                    receiver.send(&recompressed_data, 0).unwrap();
+                    publisher.send("reduction", SNDMORE).unwrap();
+                    publisher.send(&results, 0).unwrap();
                     println!("Message sent to client!");
                     println!();
                 }
+                // Resolving Power
+                //"1" => {
+
+                //}
                 _ => {
                     println!("Analysis does not exist!");
-                    process::exit(1);
+                    std::process::exit(1);
                 }
             }
         }
+        worker_procs.retain(move |x| x.borrow_mut().try_wait().unwrap() == None);
     }
+
+    Ok(())
 }
 
-fn reduction_worker(new_message: &mut message::Message) -> message::ReductionMessage {
-
-    // Perform reduction
-    let results = reduction(new_message);
-
-    // Package results message to send back to Falkor
-    let mut new_data = message::ReductionMessage::new();
-    let mut new_min = message::ReductionMessage_Min::new();
-    let mut new_max = message::ReductionMessage_Max::new();
-    new_data.set_sum(results.sum);
-    new_data.set_avg(results.avg);
-    new_min.set_min_x(results.min.0);
-    new_min.set_min_y(results.min.1);
-    new_data.set_min(new_min);
-    new_max.set_max_x(results.max.0);
-    new_max.set_max_y(results.max.1);
-    new_data.set_max(new_max);
-
-    new_data
-}
-
+/*
 fn help() {
     println!("Usage: cargo run --bin artax");
-    process::exit(1);
+    std::process::exit(1);
 }
+*/

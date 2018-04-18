@@ -1,4 +1,5 @@
 #![feature(getpid)]
+#![allow(dead_code)]
 
 extern crate zmq;
 extern crate protobuf;
@@ -7,13 +8,12 @@ extern crate snap;
 mod protos;
 mod reduction;
 
-use zmq::{Context, Error, SNDMORE};
+use zmq::Context;
 use protobuf::Message;
 use protos::message;
-use reduction::*;
+//use reduction::*;
 use std::env;
 use std::process;
-use reduction::*;
 
 
 pub enum AnalysisType {
@@ -72,7 +72,7 @@ impl WorkerTask {
     }
 
     // TODO Disconnect from REQ-REP, PUSH-PULL & PULL-PUSH sockets
-    fn disconnect() {}
+    //fn disconnect() {}
 
     // Receive analysis type on REP socket
     // Receive data on PULL socket
@@ -115,7 +115,7 @@ impl WorkerTask {
     }
 
     // TODO Send resolving power results on PUSH socket
-    fn send_respower() {}
+    //fn send_respower() {}
 
     // Run worker analysis
     pub fn run(&mut self, args: Vec<String>) {
@@ -151,7 +151,7 @@ fn main() {
 
     if args.len() == 5 {
         // Check analysis type
-        let mut analysis: AnalysisType = AnalysisType::NotSet;
+        let analysis: AnalysisType;
         match args[1].as_ref() {
             "0" => analysis = AnalysisType::Reduction,
             "1" => analysis = AnalysisType::ResPower,
@@ -163,6 +163,9 @@ fn main() {
         // Run worker
         let mut worker: WorkerTask = WorkerTask::new(analysis);
         worker.run(args);
+    }
+    else {
+        help();
     }
 }
 

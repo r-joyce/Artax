@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate zmq;
 extern crate rustc_serialize;
 extern crate protobuf;
@@ -64,9 +66,9 @@ fn run_client(algorithm: String, request: zmq::Socket, subscriber: zmq::Socket) 
 
             loop {
                 request.send("reduction", 0).unwrap();
-                let ack = request.recv_string(0).unwrap().unwrap();
+                let _ack = request.recv_string(0).unwrap().unwrap();
                 // Receive data on subscriber
-                let topic = subscriber.recv_string(0).unwrap().unwrap();
+                let _topic = subscriber.recv_string(0).unwrap().unwrap();
                 let new_message: Vec<u8> = subscriber.recv_bytes(0).unwrap();
 
                 // decompress the data
@@ -91,9 +93,9 @@ fn run_client(algorithm: String, request: zmq::Socket, subscriber: zmq::Socket) 
             }
         }
         // Resolving Power
-        "1" => {
+        //"1" => {
 
-        }
+        //}
         _ => {
             // TODO Change this to not exit
             panic!("Not a possible analysis!")
