@@ -1,9 +1,8 @@
-use std::process::{Command, Stdio};
-// use std::time::{SystemTime};
+use std::process::{Command, Child, Stdio};
 
 fn main() {
 
-    let mut procs: Vec<std::process::Child> = Vec::new();
+    let mut procs: Vec<Child> = Vec::new();
     let mut cmd =
         Command::new("cmd")
         .args(&["/C", "hello.exe"])
@@ -44,5 +43,5 @@ fn main() {
                 }
             }
         }
-    }    
+    }
 }

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 
 use protos::message;
 use std::thread;
@@ -166,4 +167,25 @@ pub fn reduction(data: &mut message::Message) -> Reduction {
     println!("Reduction complete!");
 
     results
+}
+
+pub fn reduction_worker(new_message: &mut message::Message) -> message::ReductionMessage {
+
+    // Perform reduction
+    let results = reduction(new_message);
+
+    // Package results message to send back to Falkor
+    let mut new_data = message::ReductionMessage::new();
+    let mut new_min = message::ReductionMessage_Min::new();
+    let mut new_max = message::ReductionMessage_Max::new();
+    new_data.set_sum(results.sum);
+    new_data.set_avg(results.avg);
+    new_min.set_min_x(results.min.0);
+    new_min.set_min_y(results.min.1);
+    new_data.set_min(new_min);
+    new_max.set_max_x(results.max.0);
+    new_max.set_max_y(results.max.1);
+    new_data.set_max(new_max);
+
+    new_data
 }

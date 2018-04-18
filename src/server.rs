@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate zmq;
 extern crate rustc_serialize;
 extern crate protobuf;
@@ -8,8 +10,7 @@ mod protos;
 use protobuf::Message;
 use protos::message;
 use zmq::{Context, SNDMORE};
-use std::error::Error;
-use std::process;
+//use std::process;
 use std::thread;
 use std::time::Duration;
 use std::f64;
@@ -98,7 +99,9 @@ fn create_timestamp(scale: u64) -> Vec<u64> {
     timestamp_vec
 }
 
+/*
 fn help() {
     println!("Usage: cargo run --bin server");
     process::exit(1);
 }
+*/

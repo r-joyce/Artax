@@ -1,0 +1,4 @@
+host = "tcp://127.0.0.1"
+acquisition_sub_port = 25930
+falkor_pub_port = 25931
+falkor_reply_port = 25933
