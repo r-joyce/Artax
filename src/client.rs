@@ -92,10 +92,6 @@ fn run_client(algorithm: String, request: zmq::Socket, subscriber: zmq::Socket) 
                 println!();
             }
         }
-        // Resolving Power
-        //"1" => {
-
-        //}
         _ => {
             // TODO Change this to not exit
             panic!("Not a possible analysis!")

@@ -74,15 +74,15 @@ fn main() {
     let res_req = context.socket(zmq::REQ).unwrap();
     res_req
         .bind(res_worker_rep_addr)
-        .expect("failed binding reduction worker REQ-REP");
+        .expect("failed binding res_power worker REQ-REP");
     let res_push = context.socket(zmq::PUSH).unwrap();
     res_push
         .bind(res_worker_pull_addr)
-        .expect("failed binding reduction worker PUSH-PULL");
+        .expect("failed binding res_power worker PUSH-PULL");
     let res_pull = context.socket(zmq::PULL).unwrap();
     res_pull
         .bind(res_worker_push_addr)
-        .expect("failed binding reduction worker PULL-PUSH");
+        .expect("failed binding res_power worker PULL-PUSH");
 
 
     println!("[+] Begin broker...");
@@ -116,62 +116,53 @@ fn run_broker(
     worker_procs.push(reduction);
     worker_procs.push(res_power);
 
+    println!("[+] Running...");
+
     loop {
         // Receive topic string and data
         let topic = subscriber.recv_string(0).unwrap().unwrap();
         let new_data: Vec<u8> = subscriber.recv_bytes(0).unwrap();
-        println!("Message received! Topic {:?}", topic);
 
-        // Poll for client request
-        let mut item = [
-            receiver.as_poll_item(zmq::POLLIN)
-        ];
-        zmq::poll(&mut item, -1).unwrap();
+        // Check that topic received from server was "data"
+        if topic == "data" {
+            // Poll for client request
+            let mut item = [
+                receiver.as_poll_item(zmq::POLLIN)
+            ];
+            zmq::poll(&mut item, -1).unwrap();
 
-        if item[0].is_readable() {
-            let job = receiver.recv_string(0).unwrap().unwrap();
-            receiver.send("ack", 0).unwrap();
+            if item[0].is_readable() {
+                let job = receiver.recv_string(0).unwrap().unwrap();
+                receiver.send("ack", 0).unwrap();
 
-            // Determine analysis
-            match job.as_ref() {
-                // Reduction
-                "reduction" => {
-                    // Run Worker
-                    // Send reduction enum to worker, receive acknowledgement
-                    red_req.send("0", 0).unwrap();
-                    let _ = red_req.recv_string(0).unwrap().unwrap();
+                // Determine analysis
+                match job.as_ref() {
+                    // Reduction
+                    "reduction" => {
+                        // Run Worker
+                        // Send reduction enum to worker, receive acknowledgement
+                        red_req.send("0", 0).unwrap();
+                        let _ = red_req.recv_string(0).unwrap().unwrap();
 
-                    // Send data to worker
-                    red_push.send(&new_data, 0).unwrap();
+                        // Send data to worker
+                        red_push.send(&new_data, 0).unwrap();
 
-                    // Receive results from worker
-                    let results: Vec<u8> = red_pull.recv_bytes(0).unwrap();
+                        // Receive results from worker
+                        let results: Vec<u8> = red_pull.recv_bytes(0).unwrap();
 
-                    // Send results back to the client
-                    publisher.send("reduction", SNDMORE).unwrap();
-                    publisher.send(&results, 0).unwrap();
-                    println!("Message sent to client!");
-                    println!();
-                }
-                // Resolving Power
-                //"1" => {
-
-                //}
-                _ => {
-                    println!("Analysis does not exist!");
-                    std::process::exit(1);
+                        // Send results back to the client
+                        publisher.send("reduction", SNDMORE).unwrap();
+                        publisher.send(&results, 0).unwrap();
+                    }
+                    _ => {
+                        println!("Analysis does not exist!");
+                        std::process::exit(1);
+                    }
                 }
             }
+            worker_procs.retain(move |x| x.borrow_mut().try_wait().unwrap() == None);
         }
-        worker_procs.retain(move |x| x.borrow_mut().try_wait().unwrap() == None);
     }
 
     Ok(())
 }
-
-/*
-fn help() {
-    println!("Usage: cargo run --bin artax");
-    std::process::exit(1);
-}
-*/

@@ -98,10 +98,3 @@ fn create_timestamp(scale: u64) -> Vec<u64> {
 
     timestamp_vec
 }
-
-/*
-fn help() {
-    println!("Usage: cargo run --bin server");
-    process::exit(1);
-}
-*/

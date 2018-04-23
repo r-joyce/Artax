@@ -156,15 +156,10 @@ pub fn reduction(data: &mut message::Message) -> Reduction {
         }
     }
 
-    println!("Sum: {:?}\nAvg: {:?}\nMin: [{:?}, {:?}]\nMax: [{:?}, {:?}]",
-            results.sum, results.avg, results.min.0, results.min.1, results.max.0, results.max.1);
-
     // Join child threads so main can continue
     for handle in handles {
         handle.join().unwrap();
     }
-
-    println!("Reduction complete!");
 
     results
 }
