@@ -163,6 +163,4 @@ fn run_broker(
             worker_procs.retain(move |x| x.borrow_mut().try_wait().unwrap() == None);
         }
     }
-
-    Ok(())
 }
