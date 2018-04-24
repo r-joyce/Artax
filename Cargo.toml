@@ -6,31 +6,37 @@ authors = ["KJ Dorow <kevin.e.dorow@wsu.edu>",
            "Wes Fletcher <wesley.fletcherw@wsu.edu>"]
 repository = "https://github.com/r-joyce/Artax"
 
-[lib]
-name = "reduction"
-path = "src/reduction.rs"
-
 [dependencies]
-zmq = "*"
-protoc-rust = "*"
-protobuf = "*"
-bincode = "0.6"
-chrono = "0.2"
-serde = "0.8"
-serde_derive = "0.8"
-lzf = "*"
+zmq = {git = "https://github.com/erickt/rust-zmq"}
+protobuf = "~1"
+# bincode = "0.6"
+# chrono = "0.2"
+# serde = "0.8"
+# serde_derive = "0.8"
+lzf = { git = "https://github.com/SProst/lzf-rs"}
 rustc-serialize = "0.3"
-snap = "*"
-csv = "*"
-time = "0.1"
+snap = "~0.2"
+# time = "0.1"
+config = "0.8"
+
+[build-dependencies]
+protoc-rust = "~1"
 
 [[bin]]
-name = "broker"
+name = "artax"
 path = "src/main.rs"
 
 [[bin]]
 name = "client"
-path = "src/client//src/client.rs"
+path = "src/client.rs"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "worker"
+path = "src/worker.rs"
 
 [[example]]
 name = "channels"
@@ -63,3 +69,7 @@ path = "examples/threadpool/client/src/client.rs"
 [[example]]
 name = "threads"
 path = "examples/threads/src/main.rs"
+
+[[example]]
+name = "process_pool"
+path = "examples/procpool/src/main.rs"
